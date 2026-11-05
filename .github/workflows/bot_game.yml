@@ -1,0 +1,44 @@
+name: Bot game (gratis + diskon)
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # tiap 30 menit (UTC)
+  workflow_dispatch:          # tombol "Run workflow" buat tes manual
+
+permissions:
+  contents: write             # biar bisa commit seen_*.json
+
+# cegah dua run tumpang tindih (biar seen_*.json nggak bentrok)
+concurrency:
+  group: bot-game
+  cancel-in-progress: false
+
+jobs:
+  cek:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests
+
+      - name: Jalanin bot (sekali)
+        env:
+          WEBHOOK_GRATIS: ${{ secrets.WEBHOOK_GRATIS }}
+          WEBHOOK_DISKON: ${{ secrets.WEBHOOK_DISKON }}
+          ROLE_ID_GRATIS: ${{ secrets.ROLE_ID_GRATIS }}
+          ROLE_ID_DISKON: ${{ secrets.ROLE_ID_DISKON }}
+          ITAD_KEY: ${{ secrets.ITAD_KEY }}
+        run: python bot_game.py --sekali
+
+      - name: Simpan seen_*.json
+        run: |
+          git config user.name "bot-game"
+          git config user.email "bot-game@users.noreply.github.com"
+          git add seen_gratis.json seen_diskon.json || true
+          git diff --cached --quiet || git commit -m "update seen"
+          git push
